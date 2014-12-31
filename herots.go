@@ -18,8 +18,8 @@ import (
 	"strconv"
 )
 
-type HerotsSrv struct {
-	options *HerotsSrvOptions
+type Server struct {
+	options *Options
 	certs   struct {
 		Cert tls.Certificate
 		pool struct {
@@ -33,17 +33,17 @@ type HerotsSrv struct {
 
 // predefined errors messages
 const (
-	LoadKeyPairError      string = "herots: load key pair error"
-	LoadClientCaCertError string = "herots srv: load client CA cert error"
-	StartServerError      string = "herots srv: start tls server error"
-	NoKeyPairLoad         string = "herots: no load key pair (use LoadKeyPair func)"
-	AcceptConnError       string = "herots srv: connection accept error"
+	LoadKeyPairError      = "herots: load key pair error"
+	LoadClientCaCertError = "herots srv: load client CA cert error"
+	StartServerError      = "herots srv: start tls server error"
+	NoKeyPairLoad         = "herots: no load key pair (use LoadKeyPair func)"
+	AcceptConnError       = "herots srv: connection accept error"
 )
 
 /*
-	A HerotsSrvOptions structure is used to configure a TLS server.
+	A Options structure is used to configure a TLS server.
 */
-type HerotsSrvOptions struct {
+type Options struct {
 	// Server host.
 	// By default server use "127.0.0.1".
 	Host string
@@ -59,23 +59,23 @@ type HerotsSrvOptions struct {
 	//   2 - info messages
 	//   3 - all ("1" + "2")
 	// By default server use "2".
-	MessageLvl int
+	MessageLevel int
 
 	// See http://golang.org/pkg/crypto/tls/#ClientAuthType
 	// By default server use tls.RequireAnyClientCert
-	TlsAuthType tls.ClientAuthType
+	TLSAuthType tls.ClientAuthType
 }
 
 /*
-	Return HerotsSrv struct with predefined options.
+	Return Server struct with predefined options.
 */
-func NewServer() *HerotsSrv {
-	s := &HerotsSrv{
-		options: &HerotsSrvOptions{
-			Host:        "127.0.0.1",
-			Port:        9000,
-			MessageLvl:  2,
-			TlsAuthType: tls.RequireAnyClientCert,
+func NewServer() *Server {
+	s := &Server{
+		options: &Options{
+			Host:         "127.0.0.1",
+			Port:         9000,
+			MessageLevel: 0,
+			TLSAuthType:  tls.RequireAnyClientCert,
 		},
 	}
 	s.messagesDst = os.Stdout // send msg to stdout by default
@@ -84,12 +84,12 @@ func NewServer() *HerotsSrv {
 }
 
 // func for print messages
-func (h *HerotsSrv) msg(m string, lvl int) {
-	if h.options.MessageLvl == 0 {
+func (h *Server) msg(m string, lvl int) {
+	if h.options.MessageLevel == 0 {
 		return
 	}
 
-	if h.options.MessageLvl == 3 || h.options.MessageLvl == lvl {
+	if h.options.MessageLevel == 3 || h.options.MessageLevel == lvl {
 		fmt.Fprintf(h.messagesDst, "herots srv: %s\n", m)
 	}
 }
@@ -100,14 +100,14 @@ func (h *HerotsSrv) msg(m string, lvl int) {
 
 	By default server use os.Stdout.
 */
-func (h *HerotsSrv) SetMessagesDst(src io.Writer) {
-	h.messagesDst = src
+func (h *Server) SetMessagesDst(dst io.Writer) {
+	h.messagesDst = dst
 }
 
 /*
-	Set herots server options (*HerotsSrvOptions).
+	Set herots server options (*Options).
 */
-func (h *HerotsSrv) SetOptions(o *HerotsSrvOptions) {
+func (h *Server) Config(o *Options) {
 	// check mandatory options
 	if o.Port == 0 {
 		h.msg("port can't be '0'", 2)
@@ -123,7 +123,7 @@ func (h *HerotsSrv) SetOptions(o *HerotsSrvOptions) {
 
 	Public/private key pair require as PEM encoded data.
 */
-func (h *HerotsSrv) LoadKeyPair(cert, key []byte) error {
+func (h *Server) LoadKeyPair(cert, key []byte) error {
 	// create cert pool
 	h.certs.pool.Pool = x509.NewCertPool()
 
@@ -154,7 +154,7 @@ func (h *HerotsSrv) LoadKeyPair(cert, key []byte) error {
 	By default server add cert from server public/private key pair (LoadKeyPair)
 	to cert pool.
 */
-func (h *HerotsSrv) AddClientCaCert(cert []byte) error {
+func (h *Server) AddClientCACert(cert []byte) error {
 	pemData, _ := pem.Decode(cert)
 	ca, err := x509.ParseCertificate(pemData.Bytes)
 	if err != nil {
@@ -170,7 +170,7 @@ func (h *HerotsSrv) AddClientCaCert(cert []byte) error {
 /*
 	Accept and return connection to server.
 */
-func (h *HerotsSrv) Accept() (net.Conn, error) {
+func (h *Server) Accept() (net.Conn, error) {
 	conn, err := h.listener.Accept()
 	if err != nil {
 		h.msg("accept conn error: "+err.Error(), 1)
@@ -183,14 +183,14 @@ func (h *HerotsSrv) Accept() (net.Conn, error) {
 /*
 	Start server.
 */
-func (h *HerotsSrv) Start() error {
+func (h *Server) Start() error {
 	// load keypair check
 	if len(h.certs.Cert.Certificate) == 0 {
 		return fmt.Errorf("%s\n", NoKeyPairLoad)
 	}
 
 	config := tls.Config{
-		ClientAuth:   h.options.TlsAuthType,
+		ClientAuth:   h.options.TLSAuthType,
 		Certificates: []tls.Certificate{h.certs.Cert},
 		ClientCAs:    h.certs.pool.Pool,
 		Rand:         rand.Reader,
