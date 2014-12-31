@@ -15,16 +15,16 @@ func main() {
 
 	herald := herots.NewServer()
 
-	optinons := &herots.HerotsSrvOptions{
+	optinons := &herots.Options{
 		//Host: "127.0.0.1",
-		Host:        "localhost",
-		Port:        9000,
-		MessageLvl:  3,
-		TlsAuthType: tls.RequireAndVerifyClientCert,
-		//TlsAuthType: tls.RequireAnyClientCert,
-		//TlsAuthType: tls.VerifyClientCertIfGiven,
+		Host:         "localhost",
+		Port:         9000,
+		MessageLevel: 3,
+		TLSAuthType:  tls.RequireAndVerifyClientCert,
+		//TLSAuthType: tls.RequireAnyClientCert,
+		//TLSAuthType: tls.VerifyClientCertIfGiven,
 	}
-	herald.SetOptions(optinons)
+	herald.Config(optinons)
 
 	err = herald.LoadKeyPair([]byte(certPem), []byte(pkey))
 	if err != nil {
