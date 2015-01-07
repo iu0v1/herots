@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/SpiritOfStallman/herots"
+	"net"
 	//"io/ioutil"
 )
 
@@ -52,28 +53,30 @@ func main() {
 			continue
 		}
 
-		for {
-			buf := make([]byte, 512)
+		go func(conn net.Conn) {
+			for {
+				buf := make([]byte, 512)
 
-			n, err := conn.Read(buf)
-			if err != nil {
-				if err.Error() == "EOF" {
-					fmt.Printf("from client: %s send EOF\n", conn.RemoteAddr())
-				} else {
-					fmt.Println("err::" + err.Error())
+				n, err := conn.Read(buf)
+				if err != nil {
+					if err.Error() == "EOF" {
+						fmt.Printf("from client: %s send EOF\n", conn.RemoteAddr())
+					} else {
+						fmt.Println("err::" + err.Error())
+					}
+					break
 				}
-				break
-			}
 
-			fmt.Printf("from client: %s\n", string(buf[:n]))
+				fmt.Printf("from client: %s\n", string(buf[:n]))
 
-			n, err = conn.Write(buf[:n])
-			if err != nil {
-				fmt.Println(err)
-				break
+				n, err = conn.Write(buf[:n])
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				fmt.Printf("to client: %s\n", string(buf[:n]))
 			}
-			fmt.Printf("to client: %s\n", string(buf[:n]))
-		}
+		}(conn)
 	}
 }
 
