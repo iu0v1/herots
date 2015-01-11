@@ -47,13 +47,13 @@ func main() {
 
 	for {
 		conn, err := herald.Accept()
-		defer conn.Close()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 
 		go func(conn net.Conn) {
+			defer conn.Close()
 			for {
 				buf := make([]byte, 512)
 
