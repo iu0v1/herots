@@ -37,6 +37,22 @@ func (l *log) Log(msg string, lvl int) {
 	}
 }
 
+// loadKeyPair - internal function for load certificate and private key pair.
+func loadKeyPair(cert, key []byte) (tls.Certificate, *x509.Certificate, error) {
+	c, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return tls.Certificate{}, &x509.Certificate{}, err
+	}
+
+	pemData, _ := pem.Decode(cert)
+	ca, err := x509.ParseCertificate(pemData.Bytes)
+	if err != nil {
+		return tls.Certificate{}, &x509.Certificate{}, err
+	}
+
+	return c, ca, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                  Server                                    //
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,26 +149,16 @@ func NewServer(o *Options) *Server {
 //
 // Public/private key pair require as PEM encoded data.
 func (s *Server) LoadKeyPair(cert, key []byte) error {
-	// create cert pool
-	s.certs.pool.Pool = x509.NewCertPool()
-
-	// load keypair
-	c, err := tls.X509KeyPair(cert, key)
+	c, ca, err := loadKeyPair(cert, key)
 	if err != nil {
 		return fmt.Errorf("%s: %v\n", LoadKeyPairError, err)
 	}
+
 	s.certs.Cert = c
 
-	// add cert to pool
-	pemData, _ := pem.Decode(cert)
-	ca, err := x509.ParseCertificate(pemData.Bytes)
-	if err != nil {
-		return fmt.Errorf("%s: %v\n", LoadKeyPairError, err)
-	}
+	s.certs.pool.Pool = x509.NewCertPool()
 	s.certs.pool.Pool.AddCert(ca)
 	s.certs.pool.IsSet = true
-
-	s.logger.Log("load key pair ok", 2)
 
 	return nil
 }
