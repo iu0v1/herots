@@ -27,8 +27,8 @@ type Server struct {
 			Pool  *x509.CertPool
 		}
 	}
-	listener           net.Listener
-	messageDestination io.Writer
+	listener       net.Listener
+	logDestination io.Writer
 }
 
 // predefined errors messages
@@ -52,14 +52,22 @@ type Options struct {
 	// By default server use "9000".
 	Port int
 
-	// Message level provides the opportunity to choose
-	// what print to the output.
-	//   0 - no messages
-	//   1 - errors
-	//   2 - info messages
-	//   3 - all ("1" + "2")
-	// By default server use "2".
-	MessageLevel int
+	// LogLevel provides the opportunity to choose the level of
+	// information messages.
+	// Each level includes the messages from the previous level.
+	// 0 - no messages
+	// 1 - notice
+	// 2 - info
+	// 3 - error
+	//
+	// Default: '0'.
+	LogLevel int
+
+	// LogDestination provides the opportunity to choose the own
+	// destination for log messages (errors, info, etc).
+	//
+	// Default: 'os.Stdout'.
+	LogDestination io.Writer
 
 	// See http://golang.org/pkg/crypto/tls/#ClientAuthType
 	// By default server use tls.RequireAnyClientCert
@@ -72,25 +80,25 @@ type Options struct {
 func NewServer() *Server {
 	s := &Server{
 		options: &Options{
-			Host:         "127.0.0.1",
-			Port:         9000,
-			MessageLevel: 0,
-			TLSAuthType:  tls.RequireAnyClientCert,
+			Host:        "127.0.0.1",
+			Port:        9000,
+			LogLevel:    0,
+			TLSAuthType: tls.RequireAnyClientCert,
 		},
 	}
-	s.messageDestination = os.Stdout // send msg to stdout by default
+	s.logDestination = os.Stdout // send messages to stdout by default
 
 	return s
 }
 
 // func for print messages
-func (h *Server) msg(m string, lvl int) {
-	if h.options.MessageLevel == 0 {
+func (h *Server) log(m string, lvl int) {
+	if h.options.LogLevel == 0 {
 		return
 	}
 
-	if h.options.MessageLevel == 3 || h.options.MessageLevel == lvl {
-		fmt.Fprintf(h.messageDestination, "herots srv: %s\n", m)
+	if h.options.LogLevel <= lvl {
+		fmt.Fprintf(h.logDestination, "herots srv: %s\n", m)
 	}
 }
 
@@ -101,7 +109,7 @@ func (h *Server) msg(m string, lvl int) {
 	By default server use os.Stdout.
 */
 func (h *Server) SetMessagesDst(dst io.Writer) {
-	h.messageDestination = dst
+	h.logDestination = dst
 }
 
 /*
@@ -110,8 +118,8 @@ func (h *Server) SetMessagesDst(dst io.Writer) {
 func (h *Server) Config(o *Options) {
 	// check mandatory options
 	if o.Port == 0 {
-		h.msg("port can't be '0'", 2)
-		h.msg("set port by default (9000)", 2)
+		h.log("port can't be '0'", 2)
+		h.log("set port by default (9000)", 2)
 		o.Port = 9000
 	}
 
@@ -143,7 +151,7 @@ func (h *Server) LoadKeyPair(cert, key []byte) error {
 	h.certs.pool.Pool.AddCert(ca)
 	h.certs.pool.IsSet = true
 
-	h.msg("load key pair ok", 2)
+	h.log("load key pair ok", 2)
 
 	return nil
 }
@@ -162,7 +170,7 @@ func (h *Server) AddClientCACert(cert []byte) error {
 	}
 	h.certs.pool.Pool.AddCert(ca)
 
-	h.msg("load client CA cert ok", 2)
+	h.log("load client CA cert ok", 2)
 
 	return nil
 }
@@ -173,10 +181,10 @@ func (h *Server) AddClientCACert(cert []byte) error {
 func (h *Server) Accept() (net.Conn, error) {
 	conn, err := h.listener.Accept()
 	if err != nil {
-		h.msg("accept conn error: "+err.Error(), 1)
+		h.log("accept conn error: "+err.Error(), 3)
 		return conn, fmt.Errorf("%s: %v\n", AcceptConnError, err)
 	}
-	h.msg("accepted conn from "+conn.RemoteAddr().String(), 2)
+	h.log("accepted conn from "+conn.RemoteAddr().String(), 2)
 	return conn, nil
 }
 
@@ -204,7 +212,7 @@ func (h *Server) Start() error {
 	}
 	h.listener = listener
 
-	h.msg("listening on "+service, 2)
+	h.log("listening on "+service, 2)
 
 	return nil
 }
