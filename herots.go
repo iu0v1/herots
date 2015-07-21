@@ -224,7 +224,88 @@ func (s *Server) Start() error {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Client - primary struct for client implementation.
-type Client struct{}
+type Client struct {
+	options *Options
+	certs   struct {
+		Cert tls.Certificate
+		pool *x509.CertPool
+	}
+	logger *log
+}
 
 // NewClient - function for create Client struct
-func NewClient(o *Options) *Client {}
+func NewClient(o *Options) *Client {
+	c := &Client{}
+
+	// check mandatory options
+	if o.LogDestination == nil {
+		o.LogDestination = os.Stdout
+	}
+
+	if o.Port == 0 {
+		o.Port = 9000
+	}
+
+	l := &log{
+		LogLevel:       o.LogLevel,
+		LogDestination: o.LogDestination,
+	}
+
+	c.options = o
+	c.logger = l
+	c.certs.pool = x509.NewCertPool()
+
+	return c
+}
+
+// LoadKeyPair - function for load certificate and private key pair.
+//
+// Public/private key pair require as PEM encoded data.
+func (c *Client) LoadKeyPair(cert, key []byte) error {
+	c0, ca, err := loadKeyPair(cert, key)
+	if err != nil {
+		return fmt.Errorf("%s: %v\n", LoadKeyPairError, err)
+	}
+
+	c.certs.Cert = c0
+	c.certs.pool.AddCert(ca)
+
+	return nil
+}
+
+// AddCertToRootCA - function to load additional certificates to root CA pool.
+func (c *Client) AddCertToRootCA(cert []byte) error {
+	pemData, _ := pem.Decode(cert)
+
+	ca, err := x509.ParseCertificate(pemData.Bytes)
+	if err != nil {
+		return fmt.Errorf("load CA cert error: %v\n", err)
+	}
+
+	c.certs.pool.AddCert(ca)
+
+	return nil
+}
+
+// Dial - function for start connection with server.
+func (c *Client) Dial() (*tls.Conn, error) {
+	// load keypair check
+	if len(c.certs.Cert.Certificate) == 0 {
+		return nil, fmt.Errorf("%s\n", NoKeyPairLoad)
+	}
+
+	config := &tls.Config{
+		Certificates:       []tls.Certificate{c.certs.Cert},
+		InsecureSkipVerify: false,
+		RootCAs:            c.certs.pool,
+	}
+
+	service := c.options.Host + ":" + string(c.options.Port)
+
+	conn, err := tls.Dial("tcp", service, config)
+	if err != nil {
+		return nil, fmt.Errorf("fail to dial with server: %v\n", err)
+	}
+
+	return conn, nil
+}
