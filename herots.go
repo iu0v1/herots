@@ -103,16 +103,6 @@ func (h *Server) log(m string, lvl int) {
 }
 
 /*
-	Provides the opportunity to choose own destination for
-	herots messages (errors, info, etc).
-
-	By default server use os.Stdout.
-*/
-func (h *Server) SetMessagesDst(dst io.Writer) {
-	h.logDestination = dst
-}
-
-/*
 	Set herots server options (*Options).
 */
 func (h *Server) Config(o *Options) {
