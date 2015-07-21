@@ -18,7 +18,7 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-//                             Shared functions                               //
+//                       Shared functions and structs                         //
 ////////////////////////////////////////////////////////////////////////////////
 
 // log - struct for internal log service
@@ -52,33 +52,6 @@ func loadKeyPair(cert, key []byte) (tls.Certificate, *x509.Certificate, error) {
 
 	return c, ca, nil
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//                                  Server                                    //
-////////////////////////////////////////////////////////////////////////////////
-
-// Server - primary struct for server implementation.
-type Server struct {
-	options *Options
-	certs   struct {
-		Cert tls.Certificate
-		pool struct {
-			IsSet bool
-			Pool  *x509.CertPool
-		}
-	}
-	listener net.Listener
-	logger   *log
-}
-
-// predefined errors messages
-const (
-	LoadKeyPairError      = "herots: load key pair error"
-	LoadClientCaCertError = "herots srv: load client CA cert error"
-	StartServerError      = "herots srv: start tls server error"
-	NoKeyPairLoad         = "herots: no load key pair (use LoadKeyPair func)"
-	AcceptConnError       = "herots srv: connection accept error"
-)
 
 // Options - structure, which is used to configure a TLS server and client.
 type Options struct {
@@ -115,6 +88,33 @@ type Options struct {
 	//
 	// Default: tls.RequireAnyClientCert
 	TLSAuthType tls.ClientAuthType
+}
+
+// predefined errors messages
+const (
+	LoadKeyPairError      = "herots: load key pair error"
+	LoadClientCaCertError = "herots srv: load client CA cert error"
+	StartServerError      = "herots srv: start tls server error"
+	NoKeyPairLoad         = "herots: no load key pair (use LoadKeyPair func)"
+	AcceptConnError       = "herots srv: connection accept error"
+)
+
+////////////////////////////////////////////////////////////////////////////////
+//                                  Server                                    //
+////////////////////////////////////////////////////////////////////////////////
+
+// Server - primary struct for server implementation.
+type Server struct {
+	options *Options
+	certs   struct {
+		Cert tls.Certificate
+		pool struct {
+			IsSet bool
+			Pool  *x509.CertPool
+		}
+	}
+	listener net.Listener
+	logger   *log
 }
 
 // NewServer - function for create Server struct
@@ -218,3 +218,13 @@ func (s *Server) Start() error {
 
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//                                  Client                                    //
+////////////////////////////////////////////////////////////////////////////////
+
+// Client - primary struct for client implementation.
+type Client struct{}
+
+// NewClient - function for create Client struct
+func NewClient(o *Options) *Client {}
