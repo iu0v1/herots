@@ -77,16 +77,23 @@ type Options struct {
 /*
 	Return Server struct with predefined options.
 */
-func NewServer() *Server {
-	s := &Server{
-		options: &Options{
-			Host:        "127.0.0.1",
-			Port:        9000,
-			LogLevel:    0,
-			TLSAuthType: tls.RequireAnyClientCert,
-		},
+func NewServer(o *Options) *Server {
+	s := &Server{}
+
+	// check mandatory options
+	if o.LogDestination == nil {
+		o.LogDestination = os.Stdout
 	}
-	s.logDestination = os.Stdout // send messages to stdout by default
+
+	if o.Port == 0 {
+		o.Port = 9000
+	}
+
+	if o.TLSAuthType == 0 {
+		o.TLSAuthType = tls.RequireAnyClientCert
+	}
+
+	s.options = o
 
 	return s
 }
@@ -100,20 +107,6 @@ func (h *Server) log(m string, lvl int) {
 	if h.options.LogLevel <= lvl {
 		fmt.Fprintf(h.logDestination, "herots srv: %s\n", m)
 	}
-}
-
-/*
-	Set herots server options (*Options).
-*/
-func (h *Server) Config(o *Options) {
-	// check mandatory options
-	if o.Port == 0 {
-		h.log("port can't be '0'", 2)
-		h.log("set port by default (9000)", 2)
-		o.Port = 9000
-	}
-
-	h.options = o
 }
 
 /*
