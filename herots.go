@@ -27,8 +27,8 @@ type Server struct {
 			Pool  *x509.CertPool
 		}
 	}
-	listener    net.Listener
-	messagesDst io.Writer
+	listener           net.Listener
+	messageDestination io.Writer
 }
 
 // predefined errors messages
@@ -78,7 +78,7 @@ func NewServer() *Server {
 			TLSAuthType:  tls.RequireAnyClientCert,
 		},
 	}
-	s.messagesDst = os.Stdout // send msg to stdout by default
+	s.messageDestination = os.Stdout // send msg to stdout by default
 
 	return s
 }
@@ -90,7 +90,7 @@ func (h *Server) msg(m string, lvl int) {
 	}
 
 	if h.options.MessageLevel == 3 || h.options.MessageLevel == lvl {
-		fmt.Fprintf(h.messagesDst, "herots srv: %s\n", m)
+		fmt.Fprintf(h.messageDestination, "herots srv: %s\n", m)
 	}
 }
 
@@ -101,7 +101,7 @@ func (h *Server) msg(m string, lvl int) {
 	By default server use os.Stdout.
 */
 func (h *Server) SetMessagesDst(dst io.Writer) {
-	h.messagesDst = dst
+	h.messageDestination = dst
 }
 
 /*
