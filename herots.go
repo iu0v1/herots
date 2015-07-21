@@ -17,6 +17,30 @@ import (
 	"strconv"
 )
 
+////////////////////////////////////////////////////////////////////////////////
+//                             Shared functions                               //
+////////////////////////////////////////////////////////////////////////////////
+
+// log - struct for internal log service
+type log struct {
+	LogLevel       int
+	LogDestination io.Writer
+}
+
+func (l *log) Log(msg string, lvl int) {
+	if l.LogLevel == 0 {
+		return
+	}
+
+	if l.LogLevel <= lvl {
+		fmt.Fprintf(l.LogDestination, "herots: %s\n", msg)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                  Server                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 // Server - primary struct for server implementation.
 type Server struct {
 	options *Options
@@ -27,8 +51,8 @@ type Server struct {
 			Pool  *x509.CertPool
 		}
 	}
-	listener       net.Listener
-	logDestination io.Writer
+	listener net.Listener
+	logger   *log
 }
 
 // predefined errors messages
@@ -70,6 +94,9 @@ type Options struct {
 	LogDestination io.Writer
 
 	// TLSAuthType - refer to http://golang.org/pkg/crypto/tls/#ClientAuthType
+	//
+	// This option ignored for client implementation.
+	//
 	// Default: tls.RequireAnyClientCert
 	TLSAuthType tls.ClientAuthType
 }
@@ -91,20 +118,15 @@ func NewServer(o *Options) *Server {
 		o.TLSAuthType = tls.RequireAnyClientCert
 	}
 
+	l := &log{
+		LogLevel:       o.LogLevel,
+		LogDestination: o.LogDestination,
+	}
+
 	s.options = o
+	s.logger = l
 
 	return s
-}
-
-// log - function for print log messages
-func (s *Server) log(m string, lvl int) {
-	if s.options.LogLevel == 0 {
-		return
-	}
-
-	if s.options.LogLevel <= lvl {
-		fmt.Fprintf(s.logDestination, "herots srv: %s\n", m)
-	}
 }
 
 // LoadKeyPair - function for load certificate and private key pair.
@@ -130,7 +152,7 @@ func (s *Server) LoadKeyPair(cert, key []byte) error {
 	s.certs.pool.Pool.AddCert(ca)
 	s.certs.pool.IsSet = true
 
-	s.log("load key pair ok", 2)
+	s.logger.Log("load key pair ok", 2)
 
 	return nil
 }
@@ -148,7 +170,7 @@ func (s *Server) AddClientCACert(cert []byte) error {
 	}
 	s.certs.pool.Pool.AddCert(ca)
 
-	s.log("load client CA cert ok", 2)
+	s.logger.Log("load client CA cert ok", 2)
 
 	return nil
 }
@@ -157,10 +179,10 @@ func (s *Server) AddClientCACert(cert []byte) error {
 func (s *Server) Accept() (net.Conn, error) {
 	conn, err := s.listener.Accept()
 	if err != nil {
-		s.log("accept conn error: "+err.Error(), 3)
+		s.logger.Log("accept conn error: "+err.Error(), 3)
 		return conn, fmt.Errorf("%s: %v\n", AcceptConnError, err)
 	}
-	s.log("accepted conn from "+conn.RemoteAddr().String(), 2)
+	s.logger.Log("accepted conn from "+conn.RemoteAddr().String(), 2)
 	return conn, nil
 }
 
@@ -186,7 +208,7 @@ func (s *Server) Start() error {
 	}
 	s.listener = listener
 
-	s.log("listening on "+service, 2)
+	s.logger.Log("listening on "+service, 1)
 
 	return nil
 }
