@@ -1,9 +1,8 @@
-/*
-	HEROTS
-	HERald Of The Swarm
-
-	Package for fast TLS server creation.
-*/
+// Package herots provide fast way to create TLS services: server and client.
+//
+// Explanation of the name: HERald Of The Swarm
+//
+// By the way - have a nice day :)
 package herots
 
 import (
@@ -18,6 +17,7 @@ import (
 	"strconv"
 )
 
+// Server - primary struct for server implementation.
 type Server struct {
 	options *Options
 	certs   struct {
@@ -40,16 +40,16 @@ const (
 	AcceptConnError       = "herots srv: connection accept error"
 )
 
-/*
-	A Options structure is used to configure a TLS server.
-*/
+// Options - structure, which is used to configure a TLS server and client.
 type Options struct {
 	// Server host.
-	// By default server use "127.0.0.1".
+	//
+	// Default: '127.0.0.1'.
 	Host string
 
 	// Server port.
-	// By default server use "9000".
+	//
+	// Default: '9000'.
 	Port int
 
 	// LogLevel provides the opportunity to choose the level of
@@ -69,14 +69,12 @@ type Options struct {
 	// Default: 'os.Stdout'.
 	LogDestination io.Writer
 
-	// See http://golang.org/pkg/crypto/tls/#ClientAuthType
-	// By default server use tls.RequireAnyClientCert
+	// TLSAuthType - refer to http://golang.org/pkg/crypto/tls/#ClientAuthType
+	// Default: tls.RequireAnyClientCert
 	TLSAuthType tls.ClientAuthType
 }
 
-/*
-	Return Server struct with predefined options.
-*/
+// NewServer - function for create Server struct
 func NewServer(o *Options) *Server {
 	s := &Server{}
 
@@ -98,7 +96,7 @@ func NewServer(o *Options) *Server {
 	return s
 }
 
-// func for print messages
+// log - function for print log messages
 func (s *Server) log(m string, lvl int) {
 	if s.options.LogLevel == 0 {
 		return
@@ -109,11 +107,9 @@ func (s *Server) log(m string, lvl int) {
 	}
 }
 
-/*
-	Func for load certificate and private key pair.
-
-	Public/private key pair require as PEM encoded data.
-*/
+// LoadKeyPair - function for load certificate and private key pair.
+//
+// Public/private key pair require as PEM encoded data.
 func (s *Server) LoadKeyPair(cert, key []byte) error {
 	// create cert pool
 	s.certs.pool.Pool = x509.NewCertPool()
@@ -139,12 +135,11 @@ func (s *Server) LoadKeyPair(cert, key []byte) error {
 	return nil
 }
 
-/*
-	Add client CA certificate to x509.CertPool (tls.Config.ClientCAs).
-
-	By default server add cert from server public/private key pair (LoadKeyPair)
-	to cert pool.
-*/
+// AddClientCACert - function for adding client CA certificate to
+// x509.CertPool (tls.Config.ClientCAs).
+//
+// By default server add cert from server public/private key pair (LoadKeyPair)
+// to cert pool.
 func (s *Server) AddClientCACert(cert []byte) error {
 	pemData, _ := pem.Decode(cert)
 	ca, err := x509.ParseCertificate(pemData.Bytes)
@@ -158,9 +153,7 @@ func (s *Server) AddClientCACert(cert []byte) error {
 	return nil
 }
 
-/*
-	Accept and return connection to server.
-*/
+// Accept - accept and return connections.
 func (s *Server) Accept() (net.Conn, error) {
 	conn, err := s.listener.Accept()
 	if err != nil {
@@ -171,9 +164,7 @@ func (s *Server) Accept() (net.Conn, error) {
 	return conn, nil
 }
 
-/*
-	Start server.
-*/
+// Start - function for start server.
 func (s *Server) Start() error {
 	// load keypair check
 	if len(s.certs.Cert.Certificate) == 0 {
