@@ -99,13 +99,13 @@ func NewServer(o *Options) *Server {
 }
 
 // func for print messages
-func (h *Server) log(m string, lvl int) {
-	if h.options.LogLevel == 0 {
+func (s *Server) log(m string, lvl int) {
+	if s.options.LogLevel == 0 {
 		return
 	}
 
-	if h.options.LogLevel <= lvl {
-		fmt.Fprintf(h.logDestination, "herots srv: %s\n", m)
+	if s.options.LogLevel <= lvl {
+		fmt.Fprintf(s.logDestination, "herots srv: %s\n", m)
 	}
 }
 
@@ -114,16 +114,16 @@ func (h *Server) log(m string, lvl int) {
 
 	Public/private key pair require as PEM encoded data.
 */
-func (h *Server) LoadKeyPair(cert, key []byte) error {
+func (s *Server) LoadKeyPair(cert, key []byte) error {
 	// create cert pool
-	h.certs.pool.Pool = x509.NewCertPool()
+	s.certs.pool.Pool = x509.NewCertPool()
 
 	// load keypair
 	c, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return fmt.Errorf("%s: %v\n", LoadKeyPairError, err)
 	}
-	h.certs.Cert = c
+	s.certs.Cert = c
 
 	// add cert to pool
 	pemData, _ := pem.Decode(cert)
@@ -131,10 +131,10 @@ func (h *Server) LoadKeyPair(cert, key []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s: %v\n", LoadKeyPairError, err)
 	}
-	h.certs.pool.Pool.AddCert(ca)
-	h.certs.pool.IsSet = true
+	s.certs.pool.Pool.AddCert(ca)
+	s.certs.pool.IsSet = true
 
-	h.log("load key pair ok", 2)
+	s.log("load key pair ok", 2)
 
 	return nil
 }
@@ -145,15 +145,15 @@ func (h *Server) LoadKeyPair(cert, key []byte) error {
 	By default server add cert from server public/private key pair (LoadKeyPair)
 	to cert pool.
 */
-func (h *Server) AddClientCACert(cert []byte) error {
+func (s *Server) AddClientCACert(cert []byte) error {
 	pemData, _ := pem.Decode(cert)
 	ca, err := x509.ParseCertificate(pemData.Bytes)
 	if err != nil {
 		return fmt.Errorf("%s: %v\n", LoadClientCaCertError, err)
 	}
-	h.certs.pool.Pool.AddCert(ca)
+	s.certs.pool.Pool.AddCert(ca)
 
-	h.log("load client CA cert ok", 2)
+	s.log("load client CA cert ok", 2)
 
 	return nil
 }
@@ -161,41 +161,41 @@ func (h *Server) AddClientCACert(cert []byte) error {
 /*
 	Accept and return connection to server.
 */
-func (h *Server) Accept() (net.Conn, error) {
-	conn, err := h.listener.Accept()
+func (s *Server) Accept() (net.Conn, error) {
+	conn, err := s.listener.Accept()
 	if err != nil {
-		h.log("accept conn error: "+err.Error(), 3)
+		s.log("accept conn error: "+err.Error(), 3)
 		return conn, fmt.Errorf("%s: %v\n", AcceptConnError, err)
 	}
-	h.log("accepted conn from "+conn.RemoteAddr().String(), 2)
+	s.log("accepted conn from "+conn.RemoteAddr().String(), 2)
 	return conn, nil
 }
 
 /*
 	Start server.
 */
-func (h *Server) Start() error {
+func (s *Server) Start() error {
 	// load keypair check
-	if len(h.certs.Cert.Certificate) == 0 {
+	if len(s.certs.Cert.Certificate) == 0 {
 		return fmt.Errorf("%s\n", NoKeyPairLoad)
 	}
 
 	config := tls.Config{
-		ClientAuth:   h.options.TLSAuthType,
-		Certificates: []tls.Certificate{h.certs.Cert},
-		ClientCAs:    h.certs.pool.Pool,
+		ClientAuth:   s.options.TLSAuthType,
+		Certificates: []tls.Certificate{s.certs.Cert},
+		ClientCAs:    s.certs.pool.Pool,
 		Rand:         rand.Reader,
 	}
 
-	service := h.options.Host + ":" + strconv.Itoa(h.options.Port)
+	service := s.options.Host + ":" + strconv.Itoa(s.options.Port)
 
 	listener, err := tls.Listen("tcp", service, &config)
 	if err != nil {
 		return fmt.Errorf("%s: %v\n", StartServerError, err)
 	}
-	h.listener = listener
+	s.listener = listener
 
-	h.log("listening on "+service, 2)
+	s.log("listening on "+service, 2)
 
 	return nil
 }
