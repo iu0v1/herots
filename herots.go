@@ -306,5 +306,7 @@ func (c *Client) Dial() (*tls.Conn, error) {
 		return nil, fmt.Errorf("fail to dial with server: %v\n", err)
 	}
 
+	c.logger.Log("dial to "+service+" - ok", 2)
+
 	return conn, nil
 }
