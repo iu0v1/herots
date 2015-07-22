@@ -32,7 +32,7 @@ func (l *log) Log(msg string, lvl int) {
 		return
 	}
 
-	if l.LogLevel <= lvl {
+	if lvl <= l.LogLevel {
 		fmt.Fprintf(l.LogDestination, "herots: %s\n", msg)
 	}
 }
@@ -92,11 +92,8 @@ type Options struct {
 
 // predefined errors messages
 const (
-	LoadKeyPairError      = "herots: load key pair error"
-	LoadClientCaCertError = "herots srv: load client CA cert error"
-	StartServerError      = "herots srv: start tls server error"
-	NoKeyPairLoad         = "herots: no load key pair (use LoadKeyPair func)"
-	AcceptConnError       = "herots srv: connection accept error"
+	LoadKeyPairError   = "load key pair error"
+	NoKeyPairLoadError = "no load key pair (use LoadKeyPair func)"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,10 +105,7 @@ type Server struct {
 	options *Options
 	certs   struct {
 		Cert tls.Certificate
-		pool struct {
-			IsSet bool
-			Pool  *x509.CertPool
-		}
+		Pool *x509.CertPool
 	}
 	listener net.Listener
 	logger   *log
@@ -156,9 +150,10 @@ func (s *Server) LoadKeyPair(cert, key []byte) error {
 
 	s.certs.Cert = c
 
-	s.certs.pool.Pool = x509.NewCertPool()
-	s.certs.pool.Pool.AddCert(ca)
-	s.certs.pool.IsSet = true
+	s.certs.Pool = x509.NewCertPool()
+	s.certs.Pool.AddCert(ca)
+
+	s.logger.Log("load key pair - ok", 2)
 
 	return nil
 }
@@ -172,11 +167,11 @@ func (s *Server) AddClientCACert(cert []byte) error {
 	pemData, _ := pem.Decode(cert)
 	ca, err := x509.ParseCertificate(pemData.Bytes)
 	if err != nil {
-		return fmt.Errorf("%s: %v\n", LoadClientCaCertError, err)
+		return fmt.Errorf("load client CA cert error: %v\n", err)
 	}
-	s.certs.pool.Pool.AddCert(ca)
+	s.certs.Pool.AddCert(ca)
 
-	s.logger.Log("load client CA cert ok", 2)
+	s.logger.Log("load client CA cert - ok", 2)
 
 	return nil
 }
@@ -186,7 +181,7 @@ func (s *Server) Accept() (net.Conn, error) {
 	conn, err := s.listener.Accept()
 	if err != nil {
 		s.logger.Log("accept conn error: "+err.Error(), 3)
-		return conn, fmt.Errorf("%s: %v\n", AcceptConnError, err)
+		return conn, fmt.Errorf("connection accept fail: %v\n", err)
 	}
 	s.logger.Log("accepted conn from "+conn.RemoteAddr().String(), 2)
 	return conn, nil
@@ -196,13 +191,13 @@ func (s *Server) Accept() (net.Conn, error) {
 func (s *Server) Start() error {
 	// load keypair check
 	if len(s.certs.Cert.Certificate) == 0 {
-		return fmt.Errorf("%s\n", NoKeyPairLoad)
+		return fmt.Errorf("%s\n", NoKeyPairLoadError)
 	}
 
 	config := tls.Config{
 		ClientAuth:   s.options.TLSAuthType,
 		Certificates: []tls.Certificate{s.certs.Cert},
-		ClientCAs:    s.certs.pool.Pool,
+		ClientCAs:    s.certs.Pool,
 		Rand:         rand.Reader,
 	}
 
@@ -210,7 +205,7 @@ func (s *Server) Start() error {
 
 	listener, err := tls.Listen("tcp", service, &config)
 	if err != nil {
-		return fmt.Errorf("%s: %v\n", StartServerError, err)
+		return fmt.Errorf("start tls server fail: %v\n", err)
 	}
 	s.listener = listener
 
@@ -228,7 +223,7 @@ type Client struct {
 	options *Options
 	certs   struct {
 		Cert tls.Certificate
-		pool *x509.CertPool
+		Pool *x509.CertPool
 	}
 	logger *log
 }
@@ -253,7 +248,7 @@ func NewClient(o *Options) *Client {
 
 	c.options = o
 	c.logger = l
-	c.certs.pool = x509.NewCertPool()
+	c.certs.Pool = x509.NewCertPool()
 
 	return c
 }
@@ -268,7 +263,9 @@ func (c *Client) LoadKeyPair(cert, key []byte) error {
 	}
 
 	c.certs.Cert = c0
-	c.certs.pool.AddCert(ca)
+	c.certs.Pool.AddCert(ca)
+
+	c.logger.Log("load key pair - ok", 2)
 
 	return nil
 }
@@ -282,7 +279,9 @@ func (c *Client) AddCertToRootCA(cert []byte) error {
 		return fmt.Errorf("load CA cert error: %v\n", err)
 	}
 
-	c.certs.pool.AddCert(ca)
+	c.certs.Pool.AddCert(ca)
+
+	c.logger.Log("add cert to root CA - ok", 2)
 
 	return nil
 }
@@ -291,16 +290,16 @@ func (c *Client) AddCertToRootCA(cert []byte) error {
 func (c *Client) Dial() (*tls.Conn, error) {
 	// load keypair check
 	if len(c.certs.Cert.Certificate) == 0 {
-		return nil, fmt.Errorf("%s\n", NoKeyPairLoad)
+		return nil, fmt.Errorf("%s\n", NoKeyPairLoadError)
 	}
 
 	config := &tls.Config{
 		Certificates:       []tls.Certificate{c.certs.Cert},
 		InsecureSkipVerify: false,
-		RootCAs:            c.certs.pool,
+		RootCAs:            c.certs.Pool,
 	}
 
-	service := c.options.Host + ":" + string(c.options.Port)
+	service := c.options.Host + ":" + strconv.Itoa(c.options.Port)
 
 	conn, err := tls.Dial("tcp", service, config)
 	if err != nil {
