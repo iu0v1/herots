@@ -1,70 +1,65 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
 	"io"
 	"log"
+	"os"
+	"strconv"
+
+	"github.com/iu0v1/herots"
 )
 
 func main() {
 
-	message := "Hello, server!"
-
-	cert, err := tls.X509KeyPair([]byte(certPem), []byte(pkey))
-	if err != nil {
-		log.Fatalf("server: loadkeys: %s", err)
+	options := &herots.Options{
+		Host:           "localhost",
+		Port:           9001,
+		LogLevel:       3,
+		LogDestination: os.Stdout, // for example
 	}
 
-	pool := x509.NewCertPool()
+	client := herots.NewClient(options)
+
+	err := client.LoadKeyPair([]byte(certPem), []byte(pkey))
+	if err != nil {
+		log.Fatalf("load keys error:\n%v\n", err)
+	}
 
 	// add server cert to root CA pool
-	pemData0, _ := pem.Decode([]byte(srvCertPem))
-	ca0, err := x509.ParseCertificate(pemData0.Bytes)
+	err = client.AddCertToRootCA([]byte(srvCertPem))
 	if err != nil {
-		fmt.Println(err)
-	}
-	pool.AddCert(ca0)
-
-	pemData1, _ := pem.Decode([]byte(certPem))
-	ca1, err := x509.ParseCertificate(pemData1.Bytes)
-	if err != nil {
-		fmt.Println(err)
-	}
-	pool.AddCert(ca1)
-
-	config := tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: false,
-		RootCAs:            pool,
+		log.Fatalf("load server cert error:\n%v\n", err)
 	}
 
-	conn, err := tls.Dial("tcp", "localhost:9000", &config)
+	conn, err := client.Dial()
 	if err != nil {
-		log.Fatalf("client: dial: %s", err)
+		log.Fatalf("fail to dial with server:\n%v\n", err)
 	}
 	defer conn.Close()
 
-	log.Printf("client: connected to: %s\n", conn.RemoteAddr())
+	messageCount := 3
 
-	n, err := io.WriteString(conn, string(message))
-	if err != nil {
-		log.Fatalf("client: write: %s", err)
+	for i := 0; i < messageCount; i++ {
+		message := "Hello server! Message " + strconv.Itoa(i+1)
+
+		n, err := io.WriteString(conn, string(message))
+		if err != nil {
+			log.Fatalf("client: write: %s", err)
+		}
+
+		log.Printf("client: wrote %q (%d bytes)", message, n)
+
+		reply := make([]byte, 256)
+
+		n, err = conn.Read(reply)
+		if err != nil {
+			log.Fatalf("client: write: %s", err)
+		}
+
+		log.Printf("client: read %q (%d bytes)", string(reply[:n]), n)
 	}
 
-	log.Printf("client: wrote %q (%d bytes)", message, n)
-
-	reply := make([]byte, 256)
-
-	n, err = conn.Read(reply)
-	if err != nil {
-		log.Fatalf("client: write: %s", err)
-	}
-
-	log.Printf("client: read %q (%d bytes)", string(reply[:n]), n)
-	log.Print("client: exiting")
+	log.Println("client: exiting")
 }
 
 const srvCertPem = `-----BEGIN CERTIFICATE-----

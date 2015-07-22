@@ -2,53 +2,49 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
-	"github.com/SpiritOfStallman/herots"
+	"log"
 	"net"
+	"os"
 	//"io/ioutil"
+
+	"github.com/iu0v1/herots"
 )
 
 func main() {
-	var err error
-
 	//ca, _ := ioutil.ReadFile("certs/ca.pem")
 	//key, _ := ioutil.ReadFile("certs/ca.key")
 
-	herald := herots.NewServer()
-
 	optinons := &herots.Options{
-		//Host: "127.0.0.1",
-		Host:         "localhost",
-		Port:         9000,
-		MessageLevel: 3,
-		TLSAuthType:  tls.RequireAndVerifyClientCert,
+		Host:           "localhost",
+		Port:           9001,
+		LogLevel:       3,
+		LogDestination: os.Stdout, // for example
+		TLSAuthType:    tls.RequireAndVerifyClientCert,
 		//TLSAuthType: tls.RequireAnyClientCert,
 		//TLSAuthType: tls.VerifyClientCertIfGiven,
 	}
-	herald.Config(optinons)
 
-	err = herald.LoadKeyPair([]byte(certPem), []byte(pkey))
+	server := herots.NewServer(optinons)
+
+	err := server.LoadKeyPair([]byte(certPem), []byte(pkey))
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalf("load keys error:\n%v\n", err)
 	}
 
-	//err = herald.LoadRootCaCert([]byte(certPem))
+	//err = server.LoadRootCaCert([]byte(certPem))
 	//if err != nil {
-	//	fmt.Println(err)
-	//	return
+	//	log.Fatalf("load ca cert error: %v\n", err)
 	//}
 
-	err = herald.Start()
+	err = server.Start()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalf("server start error:\n%v\n", err)
 	}
 
 	for {
-		conn, err := herald.Accept()
+		conn, err := server.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 
@@ -60,21 +56,21 @@ func main() {
 				n, err := conn.Read(buf)
 				if err != nil {
 					if err.Error() == "EOF" {
-						fmt.Printf("from client: %s send EOF\n", conn.RemoteAddr())
+						log.Printf("from client: %s send EOF\n", conn.RemoteAddr())
 					} else {
-						fmt.Println("err::" + err.Error())
+						log.Printf("conn error: %v\n", err)
 					}
 					break
 				}
 
-				fmt.Printf("from client: %s\n", string(buf[:n]))
+				log.Printf("from client: %s\n", string(buf[:n]))
 
 				n, err = conn.Write(buf[:n])
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					break
 				}
-				fmt.Printf("to client: %s\n", string(buf[:n]))
+				log.Printf("to client: %s\n", string(buf[:n]))
 			}
 		}(conn)
 	}
