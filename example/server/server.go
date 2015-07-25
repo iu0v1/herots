@@ -17,7 +17,7 @@ func main() {
 	optinons := &herots.Options{
 		Host:           "localhost",
 		Port:           9001,
-		LogLevel:       3,
+		LogLevel:       herots.LogLevelError,
 		LogDestination: os.Stdout, // for example
 		TLSAuthType:    tls.RequireAndVerifyClientCert,
 		//TLSAuthType: tls.RequireAnyClientCert,
