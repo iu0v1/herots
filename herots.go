@@ -272,6 +272,7 @@ func NewClient(o *Options) *Client {
 	l := &log{
 		LogLevel:       o.LogLevel,
 		LogDestination: o.LogDestination,
+		Handler:        o.LogHandler,
 	}
 
 	c.options = o
