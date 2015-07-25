@@ -21,13 +21,24 @@ import (
 //                       Shared functions and structs                         //
 ////////////////////////////////////////////////////////////////////////////////
 
+// LogLevelType - declare the level of informatyvity of log message
+type LogLevelType int
+
+// predefined LogLevelType levels
+const (
+	LogLevelNone = iota
+	LogLevelNotice
+	LogLevelInfo
+	LogLevelError
+)
+
 // log - struct for internal log service
 type log struct {
-	LogLevel       int
+	LogLevel       LogLevelType
 	LogDestination io.Writer
 }
 
-func (l *log) Log(msg string, lvl int) {
+func (l *log) Log(msg string, lvl LogLevelType) {
 	if l.LogLevel == 0 {
 		return
 	}
@@ -68,13 +79,13 @@ type Options struct {
 	// LogLevel provides the opportunity to choose the level of
 	// information messages.
 	// Each level includes the messages from the previous level.
-	// 0 - no messages
-	// 1 - notice
-	// 2 - info
-	// 3 - error
+	// LogLevelNone   - no messages // 0
+	// LogLevelNotice - notice      // 1
+	// LogLevelInfo   - info        // 2
+	// LogLevelError  - error       // 3
 	//
-	// Default: '0'.
-	LogLevel int
+	// Default: LogLevelNone.
+	LogLevel LogLevelType
 
 	// LogDestination provides the opportunity to choose the own
 	// destination for log messages (errors, info, etc).
@@ -153,7 +164,7 @@ func (s *Server) LoadKeyPair(cert, key []byte) error {
 	s.certs.Pool = x509.NewCertPool()
 	s.certs.Pool.AddCert(ca)
 
-	s.logger.Log("load key pair - ok", 2)
+	s.logger.Log("load key pair - ok", LogLevelInfo)
 
 	return nil
 }
@@ -171,7 +182,7 @@ func (s *Server) AddClientCACert(cert []byte) error {
 	}
 	s.certs.Pool.AddCert(ca)
 
-	s.logger.Log("load client CA cert - ok", 2)
+	s.logger.Log("load client CA cert - ok", LogLevelInfo)
 
 	return nil
 }
@@ -180,10 +191,10 @@ func (s *Server) AddClientCACert(cert []byte) error {
 func (s *Server) Accept() (net.Conn, error) {
 	conn, err := s.listener.Accept()
 	if err != nil {
-		s.logger.Log("accept conn error: "+err.Error(), 3)
+		s.logger.Log("accept conn error: "+err.Error(), LogLevelError)
 		return conn, fmt.Errorf("connection accept fail: %v\n", err)
 	}
-	s.logger.Log("accepted conn from "+conn.RemoteAddr().String(), 2)
+	s.logger.Log("accepted conn from "+conn.RemoteAddr().String(), LogLevelInfo)
 	return conn, nil
 }
 
@@ -209,7 +220,7 @@ func (s *Server) Start() error {
 	}
 	s.listener = listener
 
-	s.logger.Log("listening on "+service, 1)
+	s.logger.Log("listening on "+service, LogLevelNotice)
 
 	return nil
 }
@@ -265,7 +276,7 @@ func (c *Client) LoadKeyPair(cert, key []byte) error {
 	c.certs.Cert = c0
 	c.certs.Pool.AddCert(ca)
 
-	c.logger.Log("load key pair - ok", 2)
+	c.logger.Log("load key pair - ok", LogLevelInfo)
 
 	return nil
 }
@@ -281,7 +292,7 @@ func (c *Client) AddCertToRootCA(cert []byte) error {
 
 	c.certs.Pool.AddCert(ca)
 
-	c.logger.Log("add cert to root CA - ok", 2)
+	c.logger.Log("add cert to root CA - ok", LogLevelInfo)
 
 	return nil
 }
@@ -306,7 +317,7 @@ func (c *Client) Dial() (*tls.Conn, error) {
 		return nil, fmt.Errorf("fail to dial with server: %v\n", err)
 	}
 
-	c.logger.Log("dial to "+service+" - ok", 2)
+	c.logger.Log("dial to "+service+" - ok", LogLevelInfo)
 
 	return conn, nil
 }
