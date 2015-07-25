@@ -21,6 +21,9 @@ import (
 //                       Shared functions and structs                         //
 ////////////////////////////////////////////////////////////////////////////////
 
+// LogHandlerFunc - type for log handler functions
+type LogHandlerFunc func(message string, lvl LogLevelType)
+
 // LogLevelType - declare the level of informatyvity of log message
 type LogLevelType int
 
@@ -36,16 +39,23 @@ const (
 type log struct {
 	LogLevel       LogLevelType
 	LogDestination io.Writer
+	Handler        LogHandlerFunc
 }
 
-func (l *log) Log(msg string, lvl LogLevelType) {
+func (l *log) Log(message string, lvl LogLevelType) {
+	if l.Handler != nil {
+		l.Handler(message, lvl)
+		return
+	}
+
 	if l.LogLevel == 0 {
 		return
 	}
 
 	if lvl <= l.LogLevel {
-		fmt.Fprintf(l.LogDestination, "herots: %s\n", msg)
+		fmt.Fprintf(l.LogDestination, "herots: %s\n", message)
 	}
+
 }
 
 // loadKeyPair - internal function for load certificate and private key pair.
@@ -92,6 +102,12 @@ type Options struct {
 	//
 	// Default: 'os.Stdout'.
 	LogDestination io.Writer
+
+	// LogHandler takes log messages to bypass the internal
+	// mechanism of the message processing
+	//
+	// If LogHandler is selected - all log settings will be ignored.
+	LogHandler LogHandlerFunc
 
 	// TLSAuthType - refer to http://golang.org/pkg/crypto/tls/#ClientAuthType
 	//
@@ -142,6 +158,7 @@ func NewServer(o *Options) *Server {
 	l := &log{
 		LogLevel:       o.LogLevel,
 		LogDestination: o.LogDestination,
+		Handler:        o.LogHandler,
 	}
 
 	s.options = o
