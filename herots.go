@@ -29,7 +29,7 @@ type LogLevelType int
 
 // predefined LogLevelType levels
 const (
-	LogLevelNone = iota
+	LogLevelNone LogLevelType = iota
 	LogLevelNotice
 	LogLevelInfo
 	LogLevelError
